@@ -15,7 +15,7 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "db.sqlite")
     monkeypatch.setattr(config, "DATASET_PATH", tmp_path / "d.csv")
     import app.common as common
-    common.get_router.clear()
+    common._load_router.clear()
     return tmp_path
 
 
@@ -71,3 +71,36 @@ def test_monitoring_with_filled_log(isolated, trained_pipeline):
 def test_main_entrypoint(isolated):
     at = AppTest.from_file(str(APP / "main.py")).run(timeout=30)
     assert not at.exception
+
+
+def test_model_trained_after_app_start_is_picked_up(isolated, trained_pipeline):
+    at = AppTest.from_file(OPERATOR).run(timeout=30)
+    assert at.error
+    model.save(trained_pipeline, config.MODEL_PATH)
+    at = AppTest.from_file(OPERATOR).run(timeout=30)
+    assert not at.error
+
+
+def test_operator_can_correct_returned_auto_request(isolated, trained_pipeline):
+    from router.service import RoutingResult
+    from router.storage import Storage
+
+    model.save(trained_pipeline, config.MODEL_PATH)
+    storage = Storage(config.DB_PATH)
+    request_id = storage.log("Как оплатить обучение?", RoutingResult("Бухгалтерия", 0.9, "обычная", True, []))
+    at = AppTest.from_file(OPERATOR).run(timeout=30)
+    at.number_input(key="return_id").set_value(request_id)
+    at.selectbox(key="return_dept").select("Деканат")
+    at.button(key="return_save").click().run(timeout=30)
+    assert not at.exception
+    row = storage.all_requests().iloc[0]
+    assert row["corrected"] and row["final_department"] == "Деканат"
+
+
+def test_return_unknown_id_warns(isolated, trained_pipeline):
+    model.save(trained_pipeline, config.MODEL_PATH)
+    at = AppTest.from_file(OPERATOR).run(timeout=30)
+    at.number_input(key="return_id").set_value(999)
+    at.button(key="return_save").click().run(timeout=30)
+    assert not at.exception
+    assert at.warning

@@ -36,14 +36,19 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--days", type=int, default=30)
     parser.add_argument("--seed", type=int, default=2026)
     parser.add_argument("--hard-share", type=float, default=0.25, help="доля обращений с двумя вопросами сразу")
+    parser.add_argument("--reset", action="store_true", help="очистить журнал перед имитацией")
     args = parser.parse_args(argv)
 
     if not MODEL_PATH.exists():
         raise SystemExit("Модель не обучена. Сначала выполните: python -m router.train")
-    stats = run(RequestRouter.from_disk(), Storage(DB_PATH), n=args.n, days=args.days, seed=args.seed,
+    storage = Storage(DB_PATH)
+    if args.reset:
+        storage.clear()
+    stats = run(RequestRouter.from_disk(MODEL_PATH), storage, n=args.n, days=args.days, seed=args.seed,
                 hard_share=args.hard_share)
+    accuracy = "нет данных" if stats["accuracy"] is None else f"{stats['accuracy']:.1%}"
     print(f"Всего обращений в журнале: {stats['total']}")
-    print(f"Автомаршрутизация: {stats['auto_share']:.1%}   Точность: {stats['accuracy']:.1%}")
+    print(f"Автомаршрутизация: {stats['auto_share']:.1%}   Точность: {accuracy}")
     print(f"Сэкономлено времени сотрудников: {stats['saved_hours']:.1f} ч")
 
 

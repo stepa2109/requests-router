@@ -15,10 +15,15 @@ from router.storage import Storage  # noqa: E402
 
 
 @st.cache_resource
+def _load_router(path: str, mtime: float) -> RequestRouter:
+    # mtime входит в ключ кэша: после переобучения (из UI или CLI) модель перечитывается.
+    return RequestRouter.from_disk(Path(path))
+
+
 def get_router() -> RequestRouter | None:
     if not config.MODEL_PATH.exists():
         return None
-    return RequestRouter.from_disk(config.MODEL_PATH)
+    return _load_router(str(config.MODEL_PATH), config.MODEL_PATH.stat().st_mtime)
 
 
 def require_router() -> RequestRouter:

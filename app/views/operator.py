@@ -37,7 +37,7 @@ if "last" in st.session_state:
     request_id, result = st.session_state.last
     mode = "✅ направлено автоматически" if result.auto_routed else "🕵️ отправлено на ручной разбор"
     urgency = "🔥 высокая" if result.urgency == URGENCY_HIGH else "обычная"
-    st.markdown(f"### Отдел: **{result.department}**")
+    st.markdown(f"### Обращение #{request_id} → отдел: **{result.department}**")
     st.markdown(f"Уверенность: **{result.confidence:.0%}** · Срочность: **{urgency}** · {mode}")
     st.markdown("Другие варианты: " + ", ".join(f"{d} ({p:.0%})" for d, p in result.top3[1:]))
     with st.form(f"review_{request_id}"):
@@ -49,10 +49,26 @@ if "last" in st.session_state:
             del st.session_state.last
 
 st.divider()
+st.subheader("Возврат обращения из отдела")
+st.caption("Если отдел сообщил, что обращение пришло не по адресу, укажите его номер и правильный отдел.")
+c1, c2, c3 = st.columns([1, 2, 1], vertical_alignment="bottom")
+return_id = c1.number_input("Номер обращения", min_value=1, step=1, key="return_id")
+return_dept = c2.selectbox("Правильный отдел", DEPARTMENTS, key="return_dept")
+if c3.button("Исправить", key="return_save"):
+    returned = storage.get(int(return_id))
+    if returned is None:
+        st.warning(f"Обращение #{int(return_id)} не найдено.")
+    else:
+        storage.correct(int(return_id), return_dept)
+        st.success(f"Обращение #{int(return_id)} перенаправлено: {returned['predicted']} → {return_dept}.")
+
+st.divider()
 st.subheader("Очередь ручного разбора")
 queue = storage.pending()
 if queue.empty:
     st.info("Очередь пуста.")
+elif len(queue) > 20:
+    st.caption(f"Показаны 20 из {len(queue)} обращений в очереди.")
 for row in queue.head(20).itertuples():
     with st.expander(f"#{row.id} · {'🔥 ' if row.urgency == URGENCY_HIGH else ''}{row.text[:80]}"):
         st.write(row.text)

@@ -49,3 +49,26 @@ def test_simulate_hard_requests_produce_manual_work(tmp_path, trained_pipeline):
     assert stats["auto_share"] < 0.9
     assert stats["corrected"] > 0
     assert (storage.all_requests()["text"].str.contains("И ещё:")).any()
+
+
+def test_retrain_with_corrections_keeps_same_holdout(tmp_path):
+    p = paths(tmp_path)
+    baseline = train.run(**p, n=800)
+    storage = Storage(p["db_path"])
+    for _ in range(5):
+        request_id = storage.log("Где взять дневник практики? И ещё: как оплатить?",
+                                 RoutingResult("Деканат", 0.5, "обычная", False, []))
+        storage.correct(request_id, "Практика и трудоустройство")
+    report = train.run(**p, n=800, with_corrections=True)
+    assert report["n_test"] == baseline["n_test"]
+
+
+def test_simulate_reset_does_not_duplicate(tmp_path, trained_pipeline, monkeypatch):
+    from router import model as model_module
+    model_path = tmp_path / "m.joblib"
+    model_module.save(trained_pipeline, model_path)
+    monkeypatch.setattr(simulate, "MODEL_PATH", model_path)
+    monkeypatch.setattr(simulate, "DB_PATH", tmp_path / "db.sqlite")
+    simulate.main(["--n", "16", "--reset"])
+    simulate.main(["--n", "16", "--reset"])
+    assert len(Storage(tmp_path / "db.sqlite").all_requests()) == 16

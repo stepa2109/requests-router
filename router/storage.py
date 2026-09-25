@@ -7,6 +7,7 @@ from typing import Iterator
 
 import pandas as pd
 
+from router.config import URGENCY_HIGH
 from router.service import RoutingResult
 
 _SCHEMA = """
@@ -73,9 +74,17 @@ class Storage:
                 (department, department, _now(), request_id),
             )
 
-    def _query(self, sql: str) -> pd.DataFrame:
+    def get(self, request_id: int) -> dict | None:
+        df = self._query("SELECT * FROM requests WHERE id = ?", (request_id,))
+        return None if df.empty else df.iloc[0].to_dict()
+
+    def clear(self) -> None:
         with self._connect() as conn:
-            df = pd.read_sql_query(sql, conn)
+            conn.execute("DELETE FROM requests")
+
+    def _query(self, sql: str, params: tuple = ()) -> pd.DataFrame:
+        with self._connect() as conn:
+            df = pd.read_sql_query(sql, conn, params=params)
         if "created_at" in df:
             df["created_at"] = pd.to_datetime(df["created_at"])
         for column in ("auto_routed", "corrected"):
@@ -89,8 +98,9 @@ class Storage:
     def pending(self) -> pd.DataFrame:
         return self._query(
             "SELECT * FROM requests WHERE final_department IS NULL"
-            " ORDER BY urgency = 'высокая' DESC, created_at"
+            " ORDER BY urgency = ? DESC, created_at",
+            (URGENCY_HIGH,),
         )
 
     def corrections(self) -> pd.DataFrame:
-        return self._query("SELECT text, final_department AS department FROM requests WHERE corrected = 1")
+        return self._query("SELECT DISTINCT text, final_department AS department FROM requests WHERE corrected = 1")

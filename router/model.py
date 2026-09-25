@@ -26,10 +26,20 @@ def build_pipeline() -> Pipeline:
     ])
 
 
-def train(df: pd.DataFrame, test_size: float = 0.2, seed: int = 42) -> tuple[Pipeline, dict]:
+def train(df: pd.DataFrame, test_size: float = 0.2, seed: int = 42,
+          extra_train: pd.DataFrame | None = None) -> tuple[Pipeline, dict]:
+    """Обучает модель и оценивает её на отложенной части df.
+
+    extra_train (например, исправления операторов) добавляется только в обучающую
+    часть: тестовая выборка при том же seed не меняется, и качество до и после
+    дообучения сравнимо.
+    """
     x_train, x_test, y_train, y_test = train_test_split(
         df["text"], df["department"], test_size=test_size, random_state=seed, stratify=df["department"],
     )
+    if extra_train is not None and not extra_train.empty:
+        x_train = pd.concat([x_train, extra_train["text"]], ignore_index=True)
+        y_train = pd.concat([y_train, extra_train["department"]], ignore_index=True)
     pipeline = build_pipeline().fit(x_train, y_train)
     predicted = pipeline.predict(x_test)
     labels = list(pipeline.classes_)

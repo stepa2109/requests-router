@@ -64,3 +64,22 @@ def test_pending_urgent_first(storage):
 def test_created_at_is_datetime(storage):
     storage.log("текст", result(), created_at=datetime(2026, 3, 5, 10, 0))
     assert storage.all_requests().iloc[0]["created_at"] == datetime(2026, 3, 5, 10, 0)
+
+
+def test_clear(storage):
+    storage.log("текст", result())
+    storage.clear()
+    assert storage.all_requests().empty
+
+
+def test_get(storage):
+    request_id = storage.log("текст", result())
+    assert storage.get(request_id)["text"] == "текст"
+    assert storage.get(request_id + 100) is None
+
+
+def test_corrections_are_distinct(storage):
+    for _ in range(2):
+        request_id = storage.log("Справка для вычета", result())
+        storage.correct(request_id, "Справки и документы")
+    assert len(storage.corrections()) == 1

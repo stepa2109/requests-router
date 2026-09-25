@@ -20,14 +20,9 @@ def run(dataset_path: Path = DATASET_PATH, model_path: Path = MODEL_PATH, report
         dataset_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(dataset_path, index=False)
 
-    n_corrections = 0
-    if with_corrections:
-        corrections = Storage(db_path).corrections()
-        n_corrections = len(corrections)
-        df = pd.concat([df, corrections], ignore_index=True)
-
-    pipeline, report = model.train(df, seed=seed)
-    report["n_corrections"] = n_corrections
+    corrections = Storage(db_path).corrections() if with_corrections else None
+    pipeline, report = model.train(df, seed=seed, extra_train=corrections)
+    report["n_corrections"] = 0 if corrections is None else len(corrections)
     model.save(pipeline, model_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

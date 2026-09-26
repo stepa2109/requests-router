@@ -5,7 +5,9 @@ from pathlib import Path
 from sklearn.pipeline import Pipeline
 
 from router import model
-from router.config import CONFIDENCE_THRESHOLD, MIN_TEXT_LEN, MODEL_PATH, SECOND_OPTION_THRESHOLD
+from router.config import (CONFIDENCE_THRESHOLD, MARKER_SECOND_OPTION_THRESHOLD, MIN_TEXT_LEN, MODEL_PATH,
+                           SECOND_OPTION_THRESHOLD)
+from router.multi_topic import has_extra_question
 from router.preprocessing import normalize
 from router.urgency import detect_urgency
 
@@ -22,10 +24,12 @@ class RoutingResult:
 
 class RequestRouter:
     def __init__(self, pipeline: Pipeline, threshold: float = CONFIDENCE_THRESHOLD,
-                 second_threshold: float = SECOND_OPTION_THRESHOLD):
+                 second_threshold: float = SECOND_OPTION_THRESHOLD,
+                 marker_second_threshold: float = MARKER_SECOND_OPTION_THRESHOLD):
         self.pipeline = pipeline
         self.threshold = threshold
         self.second_threshold = second_threshold
+        self.marker_second_threshold = marker_second_threshold
 
     @classmethod
     def from_disk(cls, path: Path = MODEL_PATH) -> "RequestRouter":
@@ -37,7 +41,10 @@ class RequestRouter:
         probabilities = self.pipeline.predict_proba([text])[0]
         ranked = sorted(zip(self.pipeline.classes_, probabilities), key=lambda p: p[1], reverse=True)
         department, confidence = ranked[0]
-        multi_topic = len(ranked) > 1 and ranked[1][1] >= self.second_threshold
+        second = ranked[1][1] if len(ranked) > 1 else 0.0
+        second_threshold = min(self.second_threshold,
+                               self.marker_second_threshold if has_extra_question(text) else 1.0)
+        multi_topic = second >= second_threshold
         return RoutingResult(
             department=str(department),
             confidence=float(confidence),

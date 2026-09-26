@@ -59,3 +59,23 @@ def test_second_option_rule_can_be_disabled():
     router = RequestRouter(FakePipeline({"Бухгалтерия": 0.78, "IT": 0.20, "Деканат": 0.02}), second_threshold=1.0)
     result = router.route("Как оплатить и не открывается вебинар")
     assert result.auto_routed and not result.multi_topic
+
+
+def test_second_option_above_new_threshold_goes_to_manual():
+    result = fake_router(Бухгалтерия=0.86, IT=0.13, Деканат=0.01).route("Как оплатить обучение")
+    assert result.multi_topic and not result.auto_routed
+
+
+def test_marker_with_weak_second_option_goes_to_manual():
+    result = fake_router(Бухгалтерия=0.93, IT=0.07, Деканат=0.0).route("Как оплатить? И ещё: не открывается вебинар")
+    assert result.multi_topic and not result.auto_routed
+
+
+def test_weak_second_option_without_marker_stays_auto():
+    result = fake_router(Бухгалтерия=0.93, IT=0.07, Деканат=0.0).route("Как оплатить обучение за семестр")
+    assert result.auto_routed and not result.multi_topic
+
+
+def test_marker_with_negligible_second_option_stays_auto():
+    result = fake_router(Бухгалтерия=0.97, IT=0.03, Деканат=0.0).route("Как оплатить? И ещё: можно ли картой?")
+    assert result.auto_routed and not result.multi_topic

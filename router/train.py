@@ -20,9 +20,14 @@ def run(dataset_path: Path = DATASET_PATH, model_path: Path = MODEL_PATH, report
         dataset_path.parent.mkdir(parents=True, exist_ok=True)
         df.to_csv(dataset_path, index=False)
 
-    corrections = Storage(db_path).corrections() if with_corrections else None
-    pipeline, report = model.train(df, seed=seed, extra_train=corrections)
-    report["n_corrections"] = 0 if corrections is None else len(corrections)
+    feedback = None
+    report_extra = {"n_corrections": 0, "n_feedback": 0}
+    if with_corrections:
+        storage = Storage(db_path)
+        feedback = storage.training_examples()
+        report_extra = {"n_corrections": len(storage.corrections()), "n_feedback": len(feedback)}
+    pipeline, report = model.train(df, seed=seed, extra_train=feedback)
+    report.update(report_extra)
     model.save(pipeline, model_path)
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -31,14 +36,14 @@ def run(dataset_path: Path = DATASET_PATH, model_path: Path = MODEL_PATH, report
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Обучение модели маршрутизации обращений")
-    parser.add_argument("--with-corrections", action="store_true", help="добавить исправления операторов из журнала")
+    parser.add_argument("--with-corrections", action="store_true", help="добавить примеры от операторов из журнала")
     parser.add_argument("--n", type=int, default=2400, help="размер синтетического датасета")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args(argv)
 
     report = run(with_corrections=args.with_corrections, n=args.n, seed=args.seed)
     print(f"Обучающая выборка: {report['n_train']}, тестовая: {report['n_test']}, "
-          f"исправлений операторов: {report['n_corrections']}")
+          f"примеров от операторов: {report['n_feedback']} (из них исправлений: {report['n_corrections']})")
     print(f"Accuracy: {report['accuracy']:.3f}   Macro-F1: {report['macro_f1']:.3f}")
     for label in report["labels"]:
         row = report["per_class"][label]

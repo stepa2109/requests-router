@@ -23,7 +23,8 @@ st.markdown(f"""
 - Разбирает очередь: выбирает правильный отдел и нажимает «Направить».
 - Если отдел вернул ошибочно направленное обращение — указывает его номер в разделе
   «Возврат обращения из отдела» на странице «Оператор» и выбирает правильный отдел.
-- Каждое исправление сохраняется и используется для **дообучения** модели.
+- Каждое исправление и каждое проверенное обращение из очереди ручного разбора
+  сохраняются и используются для **дообучения** модели.
 
 ### Частые вопросы
 **Модель ошиблась — это плохо?** Нет. Исправьте отдел: так модель учится на реальных примерах.
@@ -35,8 +36,10 @@ st.markdown(f"""
 
 st.divider()
 st.subheader("Дообучение модели на исправлениях операторов")
-n_corrections = len(get_storage().corrections())
-st.write(f"Накоплено исправлений: **{n_corrections}**")
+storage = get_storage()
+n_feedback, n_corrections = len(storage.training_examples()), len(storage.corrections())
+st.write(f"Накоплено примеров от операторов: **{n_feedback}** "
+         f"(исправлений: {n_corrections}, подтверждений из ручной очереди: {n_feedback - n_corrections})")
 
 before = load_report()
 if st.button("Переобучить модель", type="primary", key="retrain"):
@@ -47,4 +50,4 @@ if st.button("Переобучить модель", type="primary", key="retrain
     c1.metric("Macro-F1 до", "—" if before is None else f"{before['macro_f1']:.3f}")
     delta = None if before is None else f"{after['macro_f1'] - before['macro_f1']:+.3f}"
     c2.metric("Macro-F1 после", f"{after['macro_f1']:.3f}", delta=delta)
-    st.success(f"Модель переобучена (учтено исправлений: {after['n_corrections']}).")
+    st.success(f"Модель переобучена (учтено примеров от операторов: {after['n_feedback']}).")

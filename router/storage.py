@@ -104,3 +104,13 @@ class Storage:
 
     def corrections(self) -> pd.DataFrame:
         return self._query("SELECT DISTINCT text, final_department AS department FROM requests WHERE corrected = 1")
+
+    def training_examples(self) -> pd.DataFrame:
+        """Примеры для дообучения: исправления операторов и проверенные человеком обращения из ручной очереди.
+
+        Верно направленные автоматически обращения не берём: на них модель и так права.
+        """
+        return self._query(
+            "SELECT DISTINCT text, final_department AS department FROM requests"
+            " WHERE corrected = 1 OR (auto_routed = 0 AND final_department IS NOT NULL)"
+        )

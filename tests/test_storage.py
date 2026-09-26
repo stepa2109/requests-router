@@ -83,3 +83,16 @@ def test_corrections_are_distinct(storage):
         request_id = storage.log("Справка для вычета", result())
         storage.correct(request_id, "Справки и документы")
     assert len(storage.corrections()) == 1
+
+
+def test_training_examples_include_corrections_and_confirmed_manual(storage):
+    storage.log("авто верно", result(auto=True))
+    auto_fixed = storage.log("авто исправлено", result(auto=True))
+    manual_ok = storage.log("ручное подтверждено", result(auto=False))
+    storage.log("ручное ждёт", result(auto=False))
+    storage.correct(auto_fixed, "Деканат")
+    storage.confirm(manual_ok)
+    examples = storage.training_examples()
+    assert sorted(examples["text"]) == ["авто исправлено", "ручное подтверждено"]
+    assert dict(zip(examples["text"], examples["department"])) == {
+        "авто исправлено": "Деканат", "ручное подтверждено": "Бухгалтерия"}

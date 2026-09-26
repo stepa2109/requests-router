@@ -72,3 +72,15 @@ def test_simulate_reset_does_not_duplicate(tmp_path, trained_pipeline, monkeypat
     simulate.main(["--n", "16", "--reset"])
     simulate.main(["--n", "16", "--reset"])
     assert len(Storage(tmp_path / "db.sqlite").all_requests()) == 16
+
+
+def test_train_uses_confirmed_manual_requests(tmp_path):
+    p = paths(tmp_path)
+    storage = Storage(p["db_path"])
+    fixed = storage.log("Где взять дневник практики?", RoutingResult("Деканат", 0.5, "обычная", False, []))
+    storage.correct(fixed, "Практика и трудоустройство")
+    confirmed = storage.log("Как оплатить семестр картой?", RoutingResult("Бухгалтерия", 0.5, "обычная", False, []))
+    storage.confirm(confirmed)
+    report = train.run(**p, n=800, with_corrections=True)
+    assert report["n_corrections"] == 1
+    assert report["n_feedback"] == 2

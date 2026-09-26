@@ -156,8 +156,8 @@
       58
     ]
   ],
-  "n_train": 1920,
+  "n_train": 1943,
   "n_test": 480,
-  "trained_at": "2026-09-25T19:20:20",
-  "n_corrections": 0
+  "trained_at": "2026-09-26T17:04:11",
+  "n_corrections": 23
 }

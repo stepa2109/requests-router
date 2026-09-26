@@ -14,8 +14,8 @@ def frame(rows):
 
 def test_empty():
     s = summary(frame([]))
-    assert s == {"total": 0, "auto_share": 0.0, "accuracy": None, "avg_confidence": None,
-                 "pending": 0, "corrected": 0, "saved_hours": 0.0}
+    assert s == {"total": 0, "auto_share": 0.0, "accuracy": None, "auto_accuracy": None, "auto_errors": 0,
+                 "avg_confidence": None, "pending": 0, "corrected": 0, "saved_hours": 0.0}
     assert daily(frame([])).empty
     assert by_department(frame([])).empty
 
@@ -38,6 +38,8 @@ def test_summary():
     assert s["pending"] == 1
     assert s["corrected"] == 1
     assert s["saved_hours"] == pytest.approx(0.2)  # 2 авто × 6 мин
+    assert s["auto_errors"] == 1
+    assert s["auto_accuracy"] == pytest.approx(0.5)  # из 2 авто одно исправлено
 
 
 def test_daily():

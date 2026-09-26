@@ -104,3 +104,14 @@ def test_return_unknown_id_warns(isolated, trained_pipeline):
     at.button(key="return_save").click().run(timeout=30)
     assert not at.exception
     assert at.warning
+
+
+def test_operator_warns_about_multiple_questions(isolated):
+    from conftest import FakePipeline
+    model.save(FakePipeline({"Бухгалтерия": 0.78, "IT-поддержка": 0.20, "Деканат": 0.02}), config.MODEL_PATH)
+    at = AppTest.from_file(OPERATOR).run(timeout=30)
+    at.text_area[0].input("Как оплатить обучение и ещё не открывается вебинар")
+    at.button(key="route").click().run(timeout=30)
+    assert not at.exception
+    assert any("несколько вопросов" in m.value for m in at.markdown)
+    assert any("ручной разбор" in m.value for m in at.markdown)

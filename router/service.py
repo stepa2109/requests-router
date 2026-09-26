@@ -5,7 +5,7 @@ from pathlib import Path
 from sklearn.pipeline import Pipeline
 
 from router import model
-from router.config import CONFIDENCE_THRESHOLD, MIN_TEXT_LEN, MODEL_PATH
+from router.config import CONFIDENCE_THRESHOLD, MIN_TEXT_LEN, MODEL_PATH, SECOND_OPTION_THRESHOLD
 from router.preprocessing import normalize
 from router.urgency import detect_urgency
 
@@ -17,12 +17,15 @@ class RoutingResult:
     urgency: str
     auto_routed: bool
     top3: list[tuple[str, float]]
+    multi_topic: bool = False
 
 
 class RequestRouter:
-    def __init__(self, pipeline: Pipeline, threshold: float = CONFIDENCE_THRESHOLD):
+    def __init__(self, pipeline: Pipeline, threshold: float = CONFIDENCE_THRESHOLD,
+                 second_threshold: float = SECOND_OPTION_THRESHOLD):
         self.pipeline = pipeline
         self.threshold = threshold
+        self.second_threshold = second_threshold
 
     @classmethod
     def from_disk(cls, path: Path = MODEL_PATH) -> "RequestRouter":
@@ -34,10 +37,12 @@ class RequestRouter:
         probabilities = self.pipeline.predict_proba([text])[0]
         ranked = sorted(zip(self.pipeline.classes_, probabilities), key=lambda p: p[1], reverse=True)
         department, confidence = ranked[0]
+        multi_topic = len(ranked) > 1 and ranked[1][1] >= self.second_threshold
         return RoutingResult(
             department=str(department),
             confidence=float(confidence),
             urgency=detect_urgency(text),
-            auto_routed=bool(confidence >= self.threshold),
+            auto_routed=bool(confidence >= self.threshold and not multi_topic),
             top3=[(str(d), float(p)) for d, p in ranked[:3]],
+            multi_topic=bool(multi_topic),
         )

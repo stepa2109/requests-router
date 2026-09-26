@@ -15,12 +15,22 @@ st.title("📊 Мониторинг внедрения")
 df = get_storage().all_requests()
 s = metrics.summary(df)
 
-c1, c2, c3, c4 = st.columns(4)
+
+def percent(value):
+    return "нет данных" if value is None else f"{value:.1%}"
+
+
+c1, c2, c3, c4, c5 = st.columns(5)
 c1.metric("Обращений", s["total"])
 c2.metric("Автомаршрутизация", f"{s['auto_share']:.0%}")
-c3.metric("Точность по журналу", "нет данных" if s["accuracy"] is None else f"{s['accuracy']:.1%}")
-c4.metric("Сэкономлено, ч", f"{s['saved_hours']:.1f}")
-st.caption(f"В очереди ручного разбора: {s['pending']} · исправлений операторов: {s['corrected']}. "
+c3.metric("Точность автомаршрутизации", percent(s["auto_accuracy"]),
+          help="Доля верных среди обращений, направленных в отдел без участия человека.")
+c4.metric("Точность модели", percent(s["accuracy"]),
+          help="Доля обработанных обращений, где отдел, предложенный моделью, не пришлось исправлять "
+               "(включая очередь ручного разбора).")
+c5.metric("Сэкономлено, ч", f"{s['saved_hours']:.1f}")
+st.caption(f"В очереди ручного разбора: {s['pending']} · исправлений операторов: {s['corrected']} "
+           f"(из них ошибок автомаршрутизации: {s['auto_errors']}). "
            f"Экономия = число автоматически направленных обращений × {MANUAL_ROUTING_MINUTES} мин "
            "ручной маршрутизации.")
 

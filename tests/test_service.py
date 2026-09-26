@@ -34,3 +34,28 @@ def test_off_topic_goes_to_manual(trained_pipeline, text):
     result = RequestRouter(trained_pipeline).route(text)
     assert result.department in DEPARTMENTS
     assert not result.auto_routed
+
+
+def fake_router(**probabilities):
+    from conftest import FakePipeline
+    return RequestRouter(FakePipeline(probabilities))
+
+
+def test_strong_second_option_goes_to_manual():
+    result = fake_router(Бухгалтерия=0.78, IT=0.20, Деканат=0.02).route("Как оплатить и не открывается вебинар")
+    assert result.department == "Бухгалтерия"
+    assert result.multi_topic
+    assert not result.auto_routed
+
+
+def test_weak_second_option_stays_auto():
+    result = fake_router(Бухгалтерия=0.90, IT=0.08, Деканат=0.02).route("Как оплатить обучение")
+    assert not result.multi_topic
+    assert result.auto_routed
+
+
+def test_second_option_rule_can_be_disabled():
+    from conftest import FakePipeline
+    router = RequestRouter(FakePipeline({"Бухгалтерия": 0.78, "IT": 0.20, "Деканат": 0.02}), second_threshold=1.0)
+    result = router.route("Как оплатить и не открывается вебинар")
+    assert result.auto_routed and not result.multi_topic

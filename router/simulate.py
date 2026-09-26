@@ -46,9 +46,14 @@ def main(argv: list[str] | None = None) -> None:
         storage.clear()
     stats = run(RequestRouter.from_disk(MODEL_PATH), storage, n=args.n, days=args.days, seed=args.seed,
                 hard_share=args.hard_share)
-    accuracy = "нет данных" if stats["accuracy"] is None else f"{stats['accuracy']:.1%}"
+
+    def percent(value):
+        return "нет данных" if value is None else f"{value:.1%}"
+
     print(f"Всего обращений в журнале: {stats['total']}")
-    print(f"Автомаршрутизация: {stats['auto_share']:.1%}   Точность: {accuracy}")
+    print(f"Автомаршрутизация: {stats['auto_share']:.1%}   "
+          f"Точность автомаршрутизации: {percent(stats['auto_accuracy'])} (ошибок: {stats['auto_errors']})   "
+          f"Точность модели: {percent(stats['accuracy'])}")
     print(f"Сэкономлено времени сотрудников: {stats['saved_hours']:.1f} ч")
 
 

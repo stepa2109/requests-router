@@ -40,6 +40,9 @@ if "last" in st.session_state:
     st.markdown(f"### Обращение #{request_id} → отдел: **{result.department}**")
     st.markdown(f"Уверенность: **{result.confidence:.0%}** · Срочность: **{urgency}** · {mode}")
     st.markdown("Другие варианты: " + ", ".join(f"{d} ({p:.0%})" for d, p in result.top3[1:]))
+    if result.multi_topic:
+        st.markdown(f"⚠️ Похоже, в обращении несколько вопросов: второй вариант — **{result.top3[1][0]}** "
+                    f"({result.top3[1][1]:.0%}). Проверьте, не нужно ли переслать обращение в оба отдела.")
     with st.form(f"review_{request_id}"):
         chosen = st.selectbox("Правильный отдел", DEPARTMENTS, index=DEPARTMENTS.index(result.department))
         if st.form_submit_button("Сохранить решение"):
